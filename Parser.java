@@ -21,21 +21,7 @@ public class Parser extends nType {
     }
 
     private void initialParse(){
-        //pop tokens off until we're left with nothing
         curNode = program;
-//        while(tokenList.size() != 0 ) {
-//            //push tokens onto stack until we have ; or new line
-//
-////            System.out.println("Line:");
-////            for (Token s:stack) {
-////                System.out.println(s.lineNum);
-////                System.out.println(s.val);
-////            }
-//            if(curNode.getTypeSpecifier() == PROGRAM) {
-//                parseStateProgram();
-//            }
-//        }
-
         parseStateProgram();
         System.out.println(this.program);
 
@@ -220,48 +206,31 @@ public class Parser extends nType {
     }
 
     private TreeNode parseArrayDecNode() {
-//        popAndPush();
-//        Token nextTok = getNextToken();
-//        if(compareTypes(nextTok, Types.NUM) || compareTypes(nextTok, Types.NAME)) {
-//            popAndPush();
-//            nextTok = getNextToken();
-//
-//            if(compareTypes(nextTok, Types.RIGHTB)) {
-//                popAndPush();
-//                nextTok = getNextToken();
-//
-//                if(compareTypes(nextTok, Types.SEMI)) {
-//                    popAndPush();
-//                    popStack(); // semi
-                    popStack(); // right bracket
-                    Token numberTok = popStack(); //number or variable Tok or Left Bracket
+        popStack(); // right bracket
+        Token numberTok = popStack(); //number or variable Tok or Left Bracket
 
-                    TreeNode retNode;
-                    retNode = new TreeNode(ARRAY);
-                    retNode.setLineNumber(numberTok.lineNum);
-                    retNode.setTypeSpecifier(1);
+        TreeNode retNode;
+        retNode = new TreeNode(ARRAY);
+        retNode.setLineNumber(numberTok.lineNum);
+        retNode.setTypeSpecifier(1);
 
-                    if(compareTypes(numberTok, Types.NUM)) { // int x[10]
-                        retNode.setnValue(Integer.parseInt(numberTok.val));
-                    } else if (compareTypes(numberTok, Types.LEFTB)) { // int x[]
-                        Token nameTok = popStack(); // name val
-                        popStack(); // pop off the int
-                        retNode.setsValue(nameTok.val);
-                        return retNode;
-                    } else if (compareTypes(numberTok, Types.NAME)) { // int x[name]
-                        TreeNode childNode = new TreeNode(numberTok.lineNum, numberTok.val, VAR, 1);
-                        retNode.setC1(childNode);
-                    }
+        if(compareTypes(numberTok, Types.NUM)) { // int x[10]
+            retNode.setnValue(Integer.parseInt(numberTok.val));
+        } else if (compareTypes(numberTok, Types.LEFTB)) { // int x[]
+            Token nameTok = popStack(); // name val
+            popStack(); // pop off the int
+            retNode.setsValue(nameTok.val);
+            return retNode;
+        } else if (compareTypes(numberTok, Types.NAME)) { // int x[name]
+            TreeNode childNode = new TreeNode(numberTok.lineNum, numberTok.val, VAR, 1);
+            retNode.setC1(childNode);
+        }
 
-                    popStack(); // left bracket
-                    Token nameTok = popStack(); // name value
+        popStack(); // left bracket
+        Token nameTok = popStack(); // name value
 
-                    retNode.setsValue(nameTok.val);
-                    return retNode;
-//                }
-//            }
-//        }
-//        return null;
+        retNode.setsValue(nameTok.val);
+        return retNode;
     }
 
     private boolean compareTypes (Token tok, Types t) {
@@ -287,59 +256,4 @@ public class Parser extends nType {
     private Token popStack() {
         return stack.remove(stack.size()-1);
     }
-
-//    //work with whats on the stack to get a node
-//    private void parseNodes() {
-//        TreeNode curNode = program;
-//        while(curNode.getNodeType() == PROGRAM) {
-//            TreeNode testNull = parseNodeIntDec();
-//            if(testNull != null) {
-//                curNode.setSibling(testNull);
-//                continue;
-//            }
-//            testNull = parseNodeArrayDec();
-//            if(testNull != null) {
-//                curNode.setSibling(testNull);
-//                continue;
-//            }
-//        }
-//    }
-//
-//    private TreeNode parseNodeArrayDec() {
-//        if(stack.size() == 5 && stack.get(0).type.equals(Types.INT) && stack.get(2).type.equals(Types.LEFTP) && stack.get(4).type.equals(Types.RIGHTP)) {
-//            return new TreeNode(stack.get(0).lineNum, stack.get(1).val, VAR, 1);
-//        } else {
-//            return null;
-//        }
-//    }
-//
-//    private TreeNode parseNodeIntDec() {
-//        if(stack.size() == 3 && stack.get(0).val.equals(Types.INT) && stack.get(2).val.equals(Types.SEMI)) {
-//            //type specifier 1 == INT
-//            return new TreeNode(stack.get(0).lineNum, stack.get(1).val, VAR, 1);
-//        } else {
-//            return null;
-//        }
-//    }
-//
-//    private void pushPopUntilSemiOrLine() {
-//        Token firstTok = tokenList.remove(0);
-//        stack.add(firstTok);
-//        int firstLineNum = firstTok.lineNum;
-//        while(tokenList.size() != 0) {
-//            firstTok = tokenList.get(0);
-//            if(firstLineNum == firstTok.lineNum) {
-//                tokenList.remove(0);
-//                stack.add(firstTok);
-//                if(firstTok.val.equals(";")) {
-//                    return;
-//                }
-//            } else {
-//                return;
-//            }
-//        }
-//        return;
-//    }
-
-
 }
