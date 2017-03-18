@@ -21,62 +21,33 @@ public class Scanner {
 
 
     public Scanner(String file) {
-        //file is available
-//        this.rf = file;
-//        if ( file.canRead() && file.exists() ) {
-//            try {
-//                //parser to scan file
-//                scannedFile = new java.util.Scanner(file);
-//            } catch(FileNotFoundException e) {
-//                return;
-//            }
-
-            //parses the scanned file into tokens based on white space
-
-            try {
-                LineNumberReader lr = new LineNumberReader(new FileReader(file));
-                String line;
-                while((line = lr.readLine()) != null) {
-                    java.util.Scanner s = new java.util.Scanner(line);
-                    String tempTok;
-                    System.out.println(line);
-                    while(s.hasNext()) {
-                        tempTok = s.next();
-                        ArrayList<Token> tempAlTok = parseToken(tempTok, lr.getLineNumber());
-                        if(tempAlTok != null) {
-                            tokens.addAll(tempAlTok);
-                        } else {
-                            System.out.println("else " + tempTok);
-                        }
+        try {
+            LineNumberReader lr = new LineNumberReader(new FileReader(file));
+            String line;
+            while((line = lr.readLine()) != null) {
+                java.util.Scanner s = new java.util.Scanner(line);
+                String tempTok;
+                System.out.println(line);
+                while(s.hasNext()) {
+                    tempTok = s.next();
+                    ArrayList<Token> tempAlTok = parseToken(tempTok, lr.getLineNumber());
+                    if(tempAlTok != null) {
+                        tokens.addAll(tempAlTok);
+                    } else {
+                        System.out.println("else " + tempTok);
                     }
                 }
-            } catch (Exception e) {
-                return;
             }
+        } catch (Exception e) {
+            return;
+        }
 
 
-//            while(scannedFile.hasNext()) {
-////                System.out.println(scannedFile.next());
-//                String tempTok = scannedFile.next();
-////                System.out.println("temp " + tempTok);
-//                ArrayList<Token> tempALTok = parseToken(tempTok);
-//                if(tempALTok != null) {
-////                    System.out.println(tempALTok.var);
-//                    tokens.addAll(parseToken(tempTok));
-//                } else {
-//                    System.out.println("else " + tempTok);
-//                }
-//            }
-
-            System.out.println("tokens:");
-            for (Token tok: tokens) {
-                System.out.println(tok.val);
-                System.out.println(tok.lineNum);
-            }
-
-//        } else {
-//            System.out.print("file not found");
-//        }
+        System.out.println("tokens:");
+        for (Token tok: tokens) {
+            System.out.println(tok.val);
+            System.out.println(tok.lineNum);
+        }
     }
 
     public ArrayList<Token> parseToken(String toToken, int lineNum) {
