@@ -17,6 +17,9 @@ import java.util.ArrayList;
 public class Scanner {
     private File rf;
     private java.util.Scanner scannedFile;
+
+
+
     private ArrayList<Token> tokens = new ArrayList<Token>();
 
 
@@ -27,14 +30,15 @@ public class Scanner {
             while((line = lr.readLine()) != null) {
                 java.util.Scanner s = new java.util.Scanner(line);
                 String tempTok;
-                System.out.println(line);
                 while(s.hasNext()) {
                     tempTok = s.next();
                     ArrayList<Token> tempAlTok = parseToken(tempTok, lr.getLineNumber());
                     if(tempAlTok != null) {
                         tokens.addAll(tempAlTok);
                     } else {
-                        System.out.println("else " + tempTok);
+                        tokens = null;
+                        return;
+//                        System.out.println("else " + tempTok);
                     }
                 }
             }
@@ -43,11 +47,11 @@ public class Scanner {
         }
 
 
-        System.out.println("tokens:");
-        for (Token tok: tokens) {
-            System.out.println(tok.val);
-            System.out.println(tok.lineNum);
-        }
+//        System.out.println("tokens:");
+//        for (Token tok: tokens) {
+//            System.out.println(tok.val);
+//            System.out.println(tok.lineNum);
+//        }
     }
 
     public ArrayList<Token> parseToken(String toToken, int lineNum) {
@@ -334,6 +338,9 @@ public class Scanner {
         return result;
     }
 
+    public ArrayList<Token> getTokens() {
+        return tokens;
+    }
 
 }
 

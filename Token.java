@@ -26,6 +26,8 @@ public class Token {
         lineNum = -1;
     }
 
+
+
     public String printToken() {
         return val;
     }

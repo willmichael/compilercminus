@@ -13,8 +13,12 @@ public class Main {
         System.out.println(new File(".").getAbsolutePath());
         File pfile = new File("/Users/WillMichael/Documents/ClassWinter2017/Compilers/sample3.cm");
 
-        String xFile = "/Users/WillMichael/Documents/ClassWinter2017/Compilers/sample3.cm";
+        String xFile = "/Users/WillMichael/Documents/ClassWinter2017/Compilers/sample5.cm";
         Scanner scanner = new Scanner(xFile);
+
+        if(scanner.getTokens() != null) {
+            Parser parser = new Parser(scanner.getTokens());
+        }
 
     }
 }
