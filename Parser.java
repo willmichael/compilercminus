@@ -41,9 +41,8 @@ public class Parser extends nType {
                     nextTok = getNextToken();
                     if (compareTypes(nextTok, Types.SEMI)) {
                         popAndPush(); // add semi
-                        popStack(); // remove semi
 
-                        curNode.setSibling(parseIntDecNode());
+                        curNode.setSibling(parseInt(1));
                         curNode = curNode.getSibling();
 
                     } else if (compareTypes(nextTok, Types.LEFTB)) { // we have an array
@@ -69,8 +68,6 @@ public class Parser extends nType {
                     } else if (compareTypes(nextTok, Types.LEFTP)) { // we have a function
 
                         parseFunc();
-
-
                     }
                 } else {
                     return null;
@@ -105,6 +102,7 @@ public class Parser extends nType {
         TreeNode params = parseFuncNodeParams();
         func.setC1(params);
 
+        popAndPush(); // pop right ) onto stack
         popAndPush(); // pop left { onto stack
         TreeNode compound = parseFuncCompound();
         func.setC2(compound);
@@ -113,19 +111,44 @@ public class Parser extends nType {
 
     private TreeNode parseFuncCompound() {
         TreeNode compound = new TreeNode(COMPOUND);
-
         //c1 set to declarations
         compound.setC1(parseFuncDeclarations());
         //c2 set to statementList
         compound.setC2(parseFuncStateList());
-
         return compound;
     }
 
     private TreeNode parseFuncDeclarations() {
         TreeNode dec = new TreeNode(DECLARATION);
+        TreeNode curD = dec; //pointer to loop through siblings
+        dec.setTypeSpecifier(0);
         //sibling dec variable or array nodes
-        getNextToken();
+        if(compareTypes(getNextToken(), Types.INT)) { //we have declarations to parse
+            while(tokenList.size() != 0 && compareTypes(getNextToken(), Types.INT)){
+                popAndPush(); // pop int onto stack
+                Token nextTok = getNextToken();
+                while (!compareTypes(nextTok, Types.SEMI)) {
+                    popAndPush();
+                    nextTok = getNextToken();
+                }
+                TreeNode d = parseInt(0); //parse out int
+                if (d == null) { //parse fail try parsing array
+                    d = parseArrayDecNode();
+                    if (d == null) {
+                        return null;// fail to parse an array
+                    }
+                    curD.setSibling(d);
+                    curD = curD.getSibling();
+                } else {
+                    curD.setSibling(d);
+                    curD = curD.getSibling();
+                }
+                popAndPush(); // pop off semi colon off tokens
+                popStack(); // pop off stack
+            }
+        } else { // no declarations to parse (void)
+            dec.setSibling(null);
+        }
         return dec;
     }
 
@@ -135,6 +158,78 @@ public class Parser extends nType {
         return stateList;
     }
 
+    /**
+     * parses "read x;" on stack
+     * @return readNode
+     */
+    private TreeNode parseRead() {
+        if(compareTypes(getTopStack(), Types.SEMI) ) {
+            Token nameTok = getTopStack(1); // name
+            if (compareTypes(nameTok, Types.NAME)) { // we have NAME
+                if(compareTypes(getTopStack(2), Types.READ)) {
+                    TreeNode readNode = new TreeNode(nameTok.lineNum, nameTok.val, READ, 0);
+                    popStack(); // pop semi
+                    popStack(); // pop var name
+                    popStack(); // pop read
+                    return readNode;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * parses "write x;" on stack
+     * @return writeNode
+     */
+    private TreeNode parseWrite() {
+        if(compareTypes(getTopStack(), Types.SEMI) ) {
+            Token nameTok = getTopStack(1); // name
+            if (compareTypes(nameTok, Types.NAME)) { // we have NAME
+                if(compareTypes(getTopStack(2), Types.WRITE)) {
+                    TreeNode writeNode = new TreeNode(nameTok.lineNum, nameTok.val, WRITE, 0);
+                    popStack(); // pop semi
+                    popStack(); // pop var name
+                    popStack(); // pop read
+                    return writeNode;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * @param i is 1 when semi colon is present
+     * parses "int x;" on stack or "int x"
+     * @return intNode
+     */
+    private TreeNode parseInt(int i) {
+        if( i == 1) {
+            if (compareTypes(getTopStack(), Types.SEMI)) {
+                Token nameTok = getTopStack(1); // name
+                if (compareTypes(nameTok, Types.NAME)) { // we have NAME
+                    if (compareTypes(getTopStack(2), Types.INT)) {
+                        TreeNode intNode = new TreeNode(nameTok.lineNum, nameTok.val, VAR, 0);
+                        popStack(); // pop semi
+                        popStack(); // pop var name
+                        popStack(); // pop read
+                        return intNode;
+                    }
+                }
+            }
+        } else {
+            Token nameTok = getTopStack(); // name
+            if (compareTypes(nameTok, Types.NAME)) { // we have NAME
+                if (compareTypes(getTopStack(1), Types.INT)) {
+                    TreeNode intNode = new TreeNode(nameTok.lineNum, nameTok.val, VAR, 0);
+                    popStack(); // pop var name
+                    popStack(); // pop read
+                    return intNode;
+                }
+            }
+        }
+        return null;
+    }
 
     private TreeNode parseFuncNodeParams() {
 //        popAndPush();
@@ -195,11 +290,13 @@ public class Parser extends nType {
     }
 
     private TreeNode parseIntDecNode() {
-        Token nextTok = popStack(); // name
+        Token nextTok = getTopStack(); // name
         if (compareTypes(nextTok, Types.NAME)) { // we have an int
             //add sibling
-            TreeNode tempNode = new TreeNode(nextTok.lineNum, nextTok.val, VAR, 1);
-            return tempNode;
+            popStack(); // pop off name
+            popStack(); // pop off int
+            TreeNode intNode = new TreeNode(nextTok.lineNum, nextTok.val, VAR, 1);
+            return intNode;
         } else {
             return null;
         }
@@ -228,6 +325,7 @@ public class Parser extends nType {
 
         popStack(); // left bracket
         Token nameTok = popStack(); // name value
+        popStack(); // pop off int
 
         retNode.setsValue(nameTok.val);
         return retNode;
@@ -251,6 +349,10 @@ public class Parser extends nType {
 
     private Token getTopStack() {
         return stack.get(stack.size()-1);
+    }
+
+    private Token getTopStack(int i) {
+        return stack.get(stack.size()-(1 + i));
     }
 
     private Token popStack() {
