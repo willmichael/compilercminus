@@ -103,7 +103,9 @@ public class Parser extends nType {
         func.setC1(params);
 
         popAndPush(); // pop right ) onto stack
+        popStack();
         popAndPush(); // pop left { onto stack
+        popStack();
         TreeNode compound = parseFuncCompound();
         func.setC2(compound);
         return null;
@@ -155,23 +157,52 @@ public class Parser extends nType {
     private TreeNode parseFuncStateList() {
         TreeNode stateList = new TreeNode(STATEMENT_LIST);
         //siblings expr, compound, if, while, return, read, write, call
+        //expr, read, write, are done
+        //if, while next
+        //then return call
 //        stateList.setSibling(parseExpr());
-        popAndPush();
-        popAndPush();
-        popAndPush();
-        popAndPush();
-        popAndPush();
-        popAndPush();
-        TreeNode pr = parseRead();
+        parseIfState();
+
+
         return stateList;
     }
 
     /**
+     * parses from the beginning of the if statement, nothing must be on the stack
+     * if( condition ) {} in the token list
+     * @return
+     */
+    private TreeNode parseIfState() {
+        TreeNode ifState = new TreeNode(IF);
+
+        Token nextToken = getNextToken();
+        nextToken = getNextToken();
+        if(compareTypes(nextToken,Types.IF)) {
+            if(compareTypes(getToken(1),Types.LEFTP)) {
+                popAndPush(); // if statement
+                popStack();
+                popAndPush(); // left parenthesis
+                popStack();
+
+                TreeNode condition = parseExpr(0);
+                ifState.setC1(condition);
+            }
+        }
+        return ifState;
+    }
+
+    private TreeNode parseWhileState() {
+        TreeNode whileState = new TreeNode(WHILE);
+
+        return whileState;
+    }
+
+    /**
      * parses expression "x = x;" where x is var, array or another expr
-     * goes from left to right on the stack
+     * goes from left to right on the token
       * @return expr node
      */
-    private TreeNode parseExpr() {
+    private TreeNode parseExpr(int i) {
         TreeNode expr = new TreeNode(EXPR);
         TreeNode e = expr;
         Token loopTok;
@@ -179,55 +210,62 @@ public class Parser extends nType {
         TreeNode leftSide = null;
         Token operator = null;
 
-        int i = 0;
-            if(leftSide == null) {
-                if(compareTypes(tokenList.get(i+1), Types.LEFTB)) { // we have array dec
+        if(i == 1) {
+            popStack();
+        }
+        if(leftSide == null) {
+            if(compareTypes(tokenList.get(i+1), Types.LEFTB)) { // we have array dec
+                popAndPush();
+                loopTok = getNextToken();
+                while(!compareTypes(loopTok, Types.RIGHTB)) {
                     popAndPush();
                     loopTok = getNextToken();
-                    while(!compareTypes(loopTok, Types.RIGHTB)) {
-                        popAndPush();
-                        loopTok = getNextToken();
-                    }
-                    popAndPush();
-                    //full array should be on stack x[10] or x[var]
-                    leftSide = parseArray(0);
-                } else if(compareTypes(tokenList.get(i), Types.NAME) || compareTypes(tokenList.get(i), Types.NUM)) {
-                    popAndPush(); // name on to stack
-                    loopTok = popStack();
+                }
+                popAndPush();
+                //full array should be on stack x[10] or x[var]
+                leftSide = parseArray(0);
+            } else if(compareTypes(tokenList.get(i), Types.NAME) || compareTypes(tokenList.get(i), Types.NUM)) {
+                popAndPush(); // name on to stack
+                loopTok = popStack();
 
-                    if(compareTypes(loopTok, Types.NUM)) {
-                        leftSide = new TreeNode(loopTok.lineNum, Integer.parseInt(loopTok.val), null, INTEGER, 1);
-                    } else {
-                        leftSide = new TreeNode(loopTok.lineNum, loopTok.val, VAR, 1);
-                    }
+                if(compareTypes(loopTok, Types.NUM)) {
+                    leftSide = new TreeNode(loopTok.lineNum, Integer.parseInt(loopTok.val), null, INTEGER, 1);
                 } else {
-                    return null;
+                    leftSide = new TreeNode(loopTok.lineNum, loopTok.val, VAR, 1);
                 }
-                e.setC1(leftSide);
+            } else {
+                return null;
             }
-            if (operator == null) {
-                operator = getNextToken();
-                if(compareTypes(operator, Types.ASSIGN) || compareTypes(operator, Types.DIV)|| compareTypes(operator, Types.PLUS)|| compareTypes(operator, Types.MINUS)|| compareTypes(operator, Types.MULT)||  compareTypes(operator, Types.DIV)|| compareTypes(operator, Types.LESS)|| compareTypes(operator, Types.LESSEQ)|| compareTypes(operator, Types.GREATEQ)|| compareTypes(operator, Types.GREAT)) {
-                    popAndPush();
-                    popStack();
-                    e.setsValue(operator.val);
-                    e.setnValue(EXPR);
-                    e.setTypeSpecifier(0);
-                    e.setLineNumber(operator.lineNum);
-                } else {
-                    rightSide = leftSide;
-                    return rightSide;
-                }
+            e.setC1(leftSide);
+        }
+        if (operator == null) {
+            operator = getNextToken();
+            if(compareTypes(operator, Types.ASSIGN) || compareTypes(operator, Types.DIV)|| compareTypes(operator, Types.PLUS)|| compareTypes(operator, Types.MINUS)|| compareTypes(operator, Types.MULT)||  compareTypes(operator, Types.DIV)|| compareTypes(operator, Types.LESS)|| compareTypes(operator, Types.LESSEQ)|| compareTypes(operator, Types.GREATEQ)|| compareTypes(operator, Types.GREAT)) {
+                popAndPush();
+                popStack();
+                e.setsValue(operator.val);
+                e.setnValue(EXPR);
+                e.setTypeSpecifier(0);
+                e.setLineNumber(operator.lineNum);
+            } else {
+                rightSide = leftSide;
+                return rightSide;
             }
-            if (rightSide == null) {
-                rightSide = parseExpr();
-                e.setC2(rightSide);
-                return expr;
-            }
+        }
+        if (rightSide == null) {
+            rightSide = parseExpr(0);
+            e.setC2(rightSide);
+            return expr;
+        }
         return null;
     }
 
-    //full array should be on stack x[10] or x[var]
+    /**
+     * full array should be on stack x[10] or x[var]
+     * param will pop semi colon off of variable
+     * @param i
+     * @return
+     */
     private TreeNode parseArray(int i) {
         if(i == 1) {
             popStack(); //pop the semicolon
@@ -291,16 +329,6 @@ public class Parser extends nType {
     private TreeNode parseWrite() {
         TreeNode readNode = new TreeNode(WRITE);
         if(compareTypes(getTopStack(), Types.SEMI) ) {
-//            Token nameTok = getTopStack(1); // name
-//            if (compareTypes(nameTok, Types.NAME)) { // we have NAME
-//                if(compareTypes(getTopStack(2), Types.WRITE)) {
-//                    TreeNode writeNode = new TreeNode(nameTok.lineNum, nameTok.val, WRITE, 0);
-//                    popStack(); // pop semi
-//                    popStack(); // pop var name
-//                    popStack(); // pop read
-//                    return writeNode;
-//                }
-//            }
             Token nameTok = getTopStack(1); // name
             if(compareTypes(nameTok, Types.RIGHTB)) { // we have array
                 TreeNode array = parseArray(1);
@@ -460,6 +488,10 @@ public class Parser extends nType {
         return false;
     }
 
+    /**
+     * returns first in line of tokenList
+     * @return
+     */
     private Token getNextToken() {
         return tokenList.get(0);
     }
@@ -484,4 +516,5 @@ public class Parser extends nType {
     private Token popStack() {
         return stack.remove(stack.size()-1);
     }
+
 }
