@@ -24,6 +24,8 @@ public class nType {
     ADD = 15,
     SUB = 16,
     MULT = 17,
-    DIV = 18
+    DIV = 18,
+    EXPR = 19,
+    INTEGER = 20
     ;
 }
