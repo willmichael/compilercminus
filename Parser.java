@@ -67,7 +67,8 @@ public class Parser extends nType {
                             }
                         }
                     } else if (compareTypes(nextTok, Types.LEFTP)) { // we have a function
-                        parseFunc();
+                        curNode.setSibling(parseFunc());
+                        curNode = curNode.getSibling();
                     }
                 } else {
                     return null;
@@ -108,9 +109,14 @@ public class Parser extends nType {
         popStack();
         TreeNode compound = parseFuncCompound();
         func.setC2(compound);
-        return null;
+        return func;
     }
 
+    /**
+     * parse declaration and statelist, nothing on stack right after '{' in the function
+     * parses until it hits '}' end of function
+     * @return
+     */
     private TreeNode parseFuncCompound() {
         TreeNode compound = new TreeNode(COMPOUND);
         //c1 set to declarations
@@ -154,17 +160,96 @@ public class Parser extends nType {
         return dec;
     }
 
+    /**
+     * declaration already called, parse until until '}' is hit
+     * @return
+     */
     private TreeNode parseFuncStateList() {
         TreeNode stateList = new TreeNode(STATEMENT_LIST);
+        TreeNode sibPoint = stateList;
         //siblings expr, compound, if, while, return, read, write, call
         //expr, read, write, are done
         //if, while next
         //then return call
 //        stateList.setSibling(parseExpr());
-        parseIfState();
+        Token nextToken = getNextToken();
+        while(!compareTypes(nextToken, Types.RIGHTC)) {
+            switch (nextToken.type) {
+                case IF:  {
+                    TreeNode result = parseIfState();
+                    sibPoint.setSibling(result);
+                    sibPoint = sibPoint.getSibling();
+                    break;
+                }
+                case WHILE:  {
+                    TreeNode result = parseWhileState();
+                    sibPoint.setSibling(result);
+                    sibPoint = sibPoint.getSibling();
+                    break;
+                }
+                case NAME:  {
+                    //expr or call?
+                    Token testTok = getToken(1);
+                    if(compareTypes(testTok, Types.LEFTP)){
+                        //call function
 
+                    }
+                    //we have expr
+                    if(compareTypes(testTok, Types.ASSIGN) || compareTypes(testTok, Types.DIV)|| compareTypes(testTok, Types.PLUS)|| compareTypes(testTok, Types.MINUS)|| compareTypes(testTok, Types.MULT)||  compareTypes(testTok, Types.DIV)|| compareTypes(testTok, Types.LESS)|| compareTypes(testTok, Types.LESSEQ)|| compareTypes(testTok, Types.GREATEQ)|| compareTypes(testTok, Types.GREAT)) {
+                        TreeNode result = parseExpr(1);
+                        sibPoint.setSibling(result);
+                        sibPoint = sibPoint.getSibling();
+                    }
+                    break;
+                }
+                case READ:  {
+                    TreeNode result = parseRead();
+                    sibPoint.setSibling(result);
+                    sibPoint = sibPoint.getSibling();
+                    break;
+                }
+                case WRITE:  {
+                    TreeNode result = parseWrite();
+                    sibPoint.setSibling(result);
+                    sibPoint = sibPoint.getSibling();
+                    break;
+                }
+                case RETURN:  {
+                    TreeNode result = parseReturn();
+                    sibPoint.setSibling(result);
+                    sibPoint = sibPoint.getSibling();
+                    break;
+                }
+                default: {
+                    System.out.println("error parsing");
+                    return stateList;
+                }
+            }
+            nextToken = getNextToken();
+        }
+        popAndPush(); // semi colon
+        popStack();
 
         return stateList;
+    }
+
+
+    private TreeNode parseReturn() {
+        TreeNode returnNode = new TreeNode(RETURN);
+
+        Token nextToken = getNextToken();
+        if(compareTypes(nextToken, Types.RETURN)) {
+            popAndPush(); //pop return val
+            popStack();
+
+            TreeNode expr = parseExpr(0);
+            returnNode.setC1(expr);
+
+            popAndPush(); //pop semi colon on end
+            popStack();
+        }
+
+        return returnNode;
     }
 
     /**
@@ -176,7 +261,6 @@ public class Parser extends nType {
         TreeNode ifState = new TreeNode(IF);
 
         Token nextToken = getNextToken();
-        nextToken = getNextToken();
         if(compareTypes(nextToken,Types.IF)) {
             if(compareTypes(getToken(1),Types.LEFTP)) {
                 popAndPush(); // if statement
@@ -186,6 +270,56 @@ public class Parser extends nType {
 
                 TreeNode condition = parseExpr(0);
                 ifState.setC1(condition);
+
+                if(compareTypes(getNextToken(), Types.RIGHTP)) { // parse everything in semi colons
+                    popAndPush(); //right parenthesis
+                    popStack();
+                    if (compareTypes(getNextToken(), Types.LEFTC)) {
+                        popAndPush(); //left curly brack
+                        popStack();
+                        TreeNode trueState = parseFuncCompound();
+                        ifState.setC2(trueState);
+                        if (compareTypes(getNextToken(), Types.ELSE)) {
+                            popAndPush(); // else
+                            popStack();
+                            if (compareTypes(getNextToken(), Types.LEFTC)) {
+                                popAndPush(); //left curly
+                                popStack();
+
+                                TreeNode falseState = parseFuncCompound();
+                                ifState.setC3(falseState);
+                            }
+                        }
+                    } else { // parse one line (hacky way to do it)
+                        try {
+                            int i = 0;
+                            Token semi = getToken(i);
+                            while (!compareTypes(semi, Types.SEMI)) {
+                                i++;
+                                semi = getToken(i);
+                            }
+                            tokenList.add(i + 1, new Token(Types.RIGHTC)); // adds in curly bracket after one line
+                            TreeNode trueState = parseFuncCompound();
+                            ifState.setC2(trueState);
+                            if (compareTypes(getNextToken(), Types.ELSE)) {
+                                popAndPush(); // else
+                                popStack();
+                                i = 0;
+                                semi = getToken(i);
+                                while (!compareTypes(semi, Types.SEMI)) {
+                                    i++;
+                                    semi = getToken(i);
+                                }
+                                tokenList.add(i + 1, new Token(Types.RIGHTC));
+                                TreeNode falseState = parseFuncCompound();
+                                ifState.setC3(falseState);
+                            }
+                        } catch (Exception e) {
+                            return ifState;
+                        }
+                    }
+                }
+
             }
         }
         return ifState;
@@ -194,6 +328,30 @@ public class Parser extends nType {
     private TreeNode parseWhileState() {
         TreeNode whileState = new TreeNode(WHILE);
 
+        Token nextToken = getNextToken();
+        if(compareTypes(nextToken,Types.WHILE)) {
+            if(compareTypes(getToken(1),Types.LEFTP)) {
+                popAndPush(); // while statement
+                popStack();
+                popAndPush(); // left parenthesis
+                popStack();
+
+                TreeNode condition = parseExpr(0);
+                whileState.setC1(condition);
+
+                if(compareTypes(getNextToken(), Types.RIGHTP)) {
+                    popAndPush(); //right parenthesis
+                    popStack();
+                    if (compareTypes(getNextToken(), Types.LEFTC)) {
+                        popAndPush(); //left curly brack
+                        popStack();
+                        TreeNode innerWhile = parseFuncCompound();
+                        whileState.setC2(innerWhile);
+                    }
+                }
+
+            }
+        }
         return whileState;
     }
 
@@ -302,24 +460,49 @@ public class Parser extends nType {
      */
     private TreeNode parseRead() {
         TreeNode readNode = new TreeNode(READ);
-        if(compareTypes(getTopStack(), Types.SEMI) ) {
-            Token nameTok = getTopStack(1); // name
-            if(compareTypes(nameTok, Types.RIGHTB)) { // we have array
-                TreeNode array = parseArray(1);
-                readNode.setC1(array);
-                return readNode;
-            } else if(compareTypes(nameTok, Types.NAME)) { // we have NAME
-                if(compareTypes(getTopStack(2), Types.READ)) {
-                    TreeNode Name = new TreeNode(nameTok.lineNum, nameTok.val, VAR, 0);
+        if(compareTypes(getNextToken(), Types.READ) ) {
+            popAndPush();
+            if(compareTypes(getNextToken(), Types.NAME)) {
+                popAndPush();
+                Token nTok = getTopStack();
+                if(compareTypes(getNextToken(), Types.LEFTB )) { // we have array
+                    while(!compareTypes(nTok,Types.SEMI)) {
+                        nTok = getNextToken();
+                        popAndPush();
+                    }
+                    TreeNode array = parseArray(1);
+                    readNode.setC1(array);
+                    return readNode;
+                } else if(compareTypes(getNextToken(), Types.SEMI)) {
+                    TreeNode name = new TreeNode(nTok.lineNum, nTok.val, VAR, 1);
+                    popAndPush(); // semi
                     popStack(); // pop semi
-                    popStack(); // pop var name
-                    popStack(); // pop read
-                    readNode.setC1(Name);
+                    popStack(); // name
+                    popStack(); // read
+                    readNode.setC1(name);
                     return readNode;
                 }
             }
         }
         return null;
+
+
+//            Token nameTok = getTopStack(1); // name
+//            if(compareTypes(nameTok, Types.RIGHTB)) { // we have array
+//                TreeNode array = parseArray(1);
+//                readNode.setC1(array);
+//                return readNode;
+//            } else if(compareTypes(nameTok, Types.NAME)) { // we have NAME
+//                if(compareTypes(getTopStack(2), Types.READ)) {
+//                    TreeNode Name = new TreeNode(nameTok.lineNum, nameTok.val, VAR, 0);
+//                    popStack(); // pop semi
+//                    popStack(); // pop var name
+//                    popStack(); // pop read
+//                    readNode.setC1(Name);
+//                    return readNode;
+//                }
+//            }
+
     }
 
     /**
@@ -327,24 +510,48 @@ public class Parser extends nType {
      * @return writeNode
      */
     private TreeNode parseWrite() {
-        TreeNode readNode = new TreeNode(WRITE);
-        if(compareTypes(getTopStack(), Types.SEMI) ) {
-            Token nameTok = getTopStack(1); // name
-            if(compareTypes(nameTok, Types.RIGHTB)) { // we have array
-                TreeNode array = parseArray(1);
-                readNode.setC1(array);
-                return readNode;
-            } else if(compareTypes(nameTok, Types.NAME)) { // we have NAME
-                if(compareTypes(getTopStack(2), Types.WRITE)) {
-                    TreeNode Name = new TreeNode(nameTok.lineNum, nameTok.val, VAR, 0);
+        TreeNode writeNode = new TreeNode(WRITE);
+        if(compareTypes(getNextToken(), Types.WRITE) ) {
+            popAndPush();
+            if (compareTypes(getNextToken(), Types.NAME)) {
+                popAndPush();
+                Token nTok = getTopStack();
+                if (compareTypes(getNextToken(), Types.LEFTB)) { // we have array
+                    while (!compareTypes(nTok, Types.SEMI)) {
+                        nTok = getNextToken();
+                        popAndPush();
+                    }
+                    TreeNode array = parseArray(1);
+                    writeNode.setC1(array);
+                    return writeNode;
+                } else if (compareTypes(getNextToken(), Types.SEMI)) {
+                    TreeNode name = new TreeNode(nTok.lineNum, nTok.val, VAR, 1);
+                    popAndPush(); // semi
                     popStack(); // pop semi
-                    popStack(); // pop var name
-                    popStack(); // pop read
-                    readNode.setC1(Name);
-                    return readNode;
+                    popStack(); // name
+                    popStack(); // read
+                    writeNode.setC1(name);
+                    return writeNode;
                 }
             }
         }
+//        if(compareTypes(getTopStack(), Types.SEMI) ) {
+//            Token nameTok = getTopStack(1); // name
+//            if(compareTypes(nameTok, Types.RIGHTB)) { // we have array
+//                TreeNode array = parseArray(1);
+//                readNode.setC1(array);
+//                return readNode;
+//            } else if(compareTypes(nameTok, Types.NAME)) { // we have NAME
+//                if(compareTypes(getTopStack(2), Types.WRITE)) {
+//                    TreeNode Name = new TreeNode(nameTok.lineNum, nameTok.val, VAR, 0);
+//                    popStack(); // pop semi
+//                    popStack(); // pop var name
+//                    popStack(); // pop read
+//                    readNode.setC1(Name);
+//                    return readNode;
+//                }
+//            }
+//        }
         return null;
     }
 
