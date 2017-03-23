@@ -26,6 +26,7 @@ public class nType {
     MULT = 17,
     DIV = 18,
     EXPR = 19,
-    INTEGER = 20
+    INTEGER = 20,
+    ARGUMENTS = 21
     ;
 }

@@ -46,12 +46,6 @@ public class Scanner {
             return;
         }
 
-
-//        System.out.println("tokens:");
-//        for (Token tok: tokens) {
-//            System.out.println(tok.val);
-//            System.out.println(tok.lineNum);
-//        }
     }
 
     public ArrayList<Token> parseToken(String toToken, int lineNum) {
